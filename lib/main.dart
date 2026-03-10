@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:logbook_app_087/services/mongo_service.dart'; // Pastikan nama package benar
-import 'package:logbook_app_087/features/onboarding/onboarding_view.dart'; // Import halaman awal
+import 'package:hive_flutter/hive_flutter.dart'; 
+import 'package:logbook_app_087/services/mongo_service.dart'; 
+import 'package:logbook_app_087/features/onboarding/onboarding_view.dart';
+import 'package:logbook_app_087/features/logbook/models/log_model.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,7 +11,13 @@ void main() async {
   // 1. Load Environment Variables
   await dotenv.load(fileName: ".env");
 
-  // 2. Inisialisasi Koneksi Database
+  // --- 2. INISIALISASI HIVE (LOCAL PERSISTENCE) ---
+  await Hive.initFlutter();
+  Hive.registerAdapter(LogModelAdapter()); 
+  await Hive.openBox<LogModel>('offline_logs');
+  // ------------------------------------------------
+
+  // 3. Inisialisasi Koneksi Database (Cloud)
   final mongoService = MongoService();
   try {
     await mongoService.connect();
@@ -27,13 +35,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Hilangkan pita DEBUG merah
+      debugShowCheckedModeBanner: false,
       title: 'Logbook App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      // [DISINI KUNCINYA] Kembalikan ke OnboardingView
       home: const OnboardingView(), 
     );
   }

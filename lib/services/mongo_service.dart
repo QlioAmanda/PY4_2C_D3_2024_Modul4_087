@@ -39,15 +39,15 @@ class MongoService {
     }
   }
 
-  // [PERBAIKAN] Menambahkan parameter author untuk memfilter data milik user tertentu
-  Future<List<LogModel>> getLogs(String author) async {
+  // --- [COLLABORATIVE SYNC] ---
+  Future<List<LogModel>> getLogs(String teamId) async {
     try {
       final collection = await _getSafeCollection();
-      await LogHelper.writeLog("INFO: Fetching data from Cloud for author: $author...", source: _source, level: 3);
+      await LogHelper.writeLog("INFO: Fetching data from Cloud for team: $teamId...", source: _source, level: 3);
       
-      // Mengambil data yang hanya memiliki author sesuai username yang login
+      // Mengambil data yang memiliki teamId yang sama (Satu kelompok bisa saling lihat)
       final data = await collection.find(
-        where.eq('author', author).sortBy('date', descending: true)
+        where.eq('teamId', teamId).sortBy('date', descending: true)
       ).toList();
       
       return data.map((json) => LogModel.fromMap(json)).toList();
@@ -78,9 +78,12 @@ class MongoService {
         .set('description', log.description)
         .set('category', log.category)
         .set('date', log.date)
-        .set('author', log.author); 
+        .set('author', log.author)
+        .set('teamId', log.teamId); // Jangan lupa update teamId juga
 
-      await collection.update(where.id(log.id!), modifier);
+      // PERBAIKAN: Konversi log.id! yang berupa String menjadi ObjectId
+      await collection.update(where.id(ObjectId.fromHexString(log.id!)), modifier);
+      
       await LogHelper.writeLog("DATABASE: Update '${log.title}' Berhasil", source: _source, level: 2);
     } catch (e) {
       await LogHelper.writeLog("DATABASE: Update Gagal - $e", source: _source, level: 1);
@@ -88,10 +91,11 @@ class MongoService {
     }
   }
 
-  Future<void> deleteLog(ObjectId id) async {
+  Future<void> deleteLog(String id) async { 
     try {
       final collection = await _getSafeCollection();
-      await collection.remove(where.id(id));
+      // Konversi String kembali ke ObjectId di sini
+      await collection.remove(where.id(ObjectId.fromHexString(id))); 
       await LogHelper.writeLog("DATABASE: Hapus ID $id Berhasil", source: _source, level: 2);
     } catch (e) {
       await LogHelper.writeLog("DATABASE: Hapus Gagal - $e", source: _source, level: 1);

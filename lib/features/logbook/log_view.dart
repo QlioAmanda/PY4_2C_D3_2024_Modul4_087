@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'log_controller.dart';
 import 'models/log_model.dart';
+import 'log_editor_page.dart'; 
 import '../../auth/login_view.dart';
 import 'widgets/log_item_widget.dart';
 import '../../services/mongo_service.dart'; 
 
 class LogView extends StatefulWidget {
   final String username;
-  const LogView({super.key, required this.username});
-
+  final String role; 
+  final String teamId; 
+  
+  const LogView({super.key, required this.username, required this.role, required this.teamId});
   @override
   State<LogView> createState() => _LogViewState();
 }
@@ -23,9 +26,7 @@ class _LogViewState extends State<LogView> {
 
   bool _isLoading = true; 
 
-  String _selectedCategory = 'Pekerjaan';
   String _filterCategory = 'Semua'; 
-  final List<String> _categories = ['Pekerjaan', 'Pribadi', 'Urgent'];
   final List<String> _filterCategories = ['Semua', 'Pekerjaan', 'Pribadi', 'Urgent'];
 
   int _currentPage = 0;
@@ -38,7 +39,7 @@ class _LogViewState extends State<LogView> {
   @override
   void initState() {
     super.initState();
-    _controller = LogController(widget.username);
+    _controller = LogController(widget.username, widget.role, widget.teamId);
     
     _controller.filteredLogsNotifier.addListener(() {
       if (mounted) setState(() => _currentPage = 0);
@@ -156,70 +157,17 @@ class _LogViewState extends State<LogView> {
     );
   }
 
-  void _showLogDialog({LogModel? log, int? index}) {
-    bool isEdit = log != null;
-    if (isEdit) {
-      _titleController.text = log.title;
-      _descController.text = log.description;
-      _selectedCategory = log.category; 
-    } else {
-      _titleController.clear();
-      _descController.clear();
-      _selectedCategory = 'Pekerjaan'; 
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: double.maxFinite,
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? "Edit Catatan" : "Tulis Baru", style: TextStyle(color: _textNavy, fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 20),
-                    _buildDialogTextField(_titleController, "Judul..."),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedCategory,
-                          isExpanded: true,
-                          items: _categories.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
-                          onChanged: (newValue) => setStateDialog(() => _selectedCategory = newValue!),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDialogTextField(_descController, "Isi catatan...", maxLines: 5, minLines: 3),
-                ]),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text("Batal", style: TextStyle(color: Colors.grey.shade600))),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: _themeColor, foregroundColor: Colors.white),
-                onPressed: () {
-                  if (_titleController.text.trim().isEmpty) return;
-                  if (isEdit) {
-                    _controller.updateLog(index!, _titleController.text, _descController.text, _selectedCategory);
-                    _showSnackBar("Berhasil diupdate!", isError: false);
-                  } else {
-                    _controller.addLog(_titleController.text, _descController.text, _selectedCategory);
-                    _showSnackBar("Tersimpan!", isError: false);
-                  }
-                  Navigator.pop(context);
-                },
-                child: Text(isEdit ? "Update" : "Simpan"),
-              ),
-            ],
-          );
-        }
+  // Navigasi ke Halaman Editor Full Page
+  void _goToEditor({LogModel? log, int? index}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LogEditorPage(
+          log: log,
+          index: index,
+          controller: _controller,
+          username: widget.username,
+        ),
       ),
     );
   }
@@ -238,10 +186,6 @@ class _LogViewState extends State<LogView> {
         ],
       ),
     );
-  }
-
-  Widget _buildDialogTextField(TextEditingController ctrl, String hint, {int maxLines = 1, int minLines = 1}) {
-    return TextField(controller: ctrl, maxLines: maxLines, minLines: minLines, decoration: InputDecoration(hintText: hint, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))));
   }
 
   Color _getCategoryColor(String cat) {
@@ -276,7 +220,7 @@ class _LogViewState extends State<LogView> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: _themeColor, foregroundColor: Colors.white,
-        onPressed: () => _showLogDialog(),
+        onPressed: () => _goToEditor(), // UBAH INI
         icon: const Icon(Icons.edit_outlined), label: const Text("Tulis Baru"),
       ),
       body: Column(
@@ -397,10 +341,13 @@ class _LogViewState extends State<LogView> {
                               itemCount: paginatedLogs.length,
                               itemBuilder: (context, index) {
                                 final realIndex = safeStartIndex + index; 
+                                // Lokasi: lib/features/logbook/log_view.dart
                                 return LogItemWidget(
                                   log: paginatedLogs[index],
+                                  currentUser: widget.username,      // PASTIKAN ini widget.username
+                                  currentUserRole: widget.role,      // PASTIKAN ini widget.role
                                   onTap: () => _showDetailDialog(paginatedLogs[index]), 
-                                  onEdit: () => _showLogDialog(log: paginatedLogs[index], index: realIndex), 
+                                  onEdit: () => _goToEditor(log: paginatedLogs[index], index: realIndex),
                                   onDelete: () {
                                     _controller.deleteLog(realIndex);
                                     _showSnackBar("Catatan dihapus.", isError: true);

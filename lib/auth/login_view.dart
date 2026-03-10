@@ -16,10 +16,9 @@ class _LoginViewState extends State<LoginView> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isObscure = true;
 
-  // --- PALET WARNA MODERN (Senada dengan Onboarding) ---
-  final Color _bgBlue = const Color(0xFFE1F5FE);     // Background Biru Muda
-  final Color _primaryBlue = const Color(0xFF1565C0); // Biru Tua (Aksen Utama)
-  final Color _errorRed = const Color(0xFFD32F2F);   // Merah untuk Error/Locked
+  final Color _bgBlue = const Color(0xFFE1F5FE);     
+  final Color _primaryBlue = const Color(0xFF1565C0); 
+  final Color _errorRed = const Color(0xFFD32F2F);   
 
   @override
   void dispose() {
@@ -30,12 +29,15 @@ class _LoginViewState extends State<LoginView> {
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
       if (_c.login(_userC.text, _passC.text)) {
-        // Login Sukses
+        
+        // --- [PERBAIKAN MODUL 5 LAKAH 4] ---
+        String role = _c.getUserRole(_userC.text);
+        String teamId = _c.getUserTeam(_userC.text); // Ambil Team ID
+        
         Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => LogView(username: _userC.text)),
+          context, MaterialPageRoute(builder: (_) => LogView(username: _userC.text, role: role, teamId: teamId)),
         );
       } else {
-        // Login Gagal
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
             _c.isLocked.value ? "Akses Terkunci Sementara!" : "Username atau Password Salah!",
@@ -48,18 +50,17 @@ class _LoginViewState extends State<LoginView> {
       }
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgBlue, // Background penuh warna
+      backgroundColor: _bgBlue, 
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 1. LOGO GEMBOK BESAR
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -74,10 +75,7 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 child: Icon(Icons.lock_person_rounded, size: 64, color: _primaryBlue),
               ),
-              
               const SizedBox(height: 30),
-
-              // 2. KARTU LOGIN (Form Container)
               Container(
                 padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
@@ -94,31 +92,14 @@ class _LoginViewState extends State<LoginView> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      Text(
-                        "Welcome Back",
-                        style: TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                      Text("Welcome Back", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade800, letterSpacing: 0.5)),
                       const SizedBox(height: 8),
-                      Text(
-                        "Silakan masuk untuk melanjutkan catatan harianmu di LogBook pribadi.",
-                        style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14),
-                      ),
-                      
+                      Text("Silakan masuk untuk melanjutkan catatan harianmu di LogBook pribadi.", style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14)),
                       const SizedBox(height: 30),
-
-                      // Input Username
                       _buildTextField(_userC, "Username", Icons.person_outline_rounded),
                       const SizedBox(height: 16),
-                      
-                      // Input Password
                       _buildTextField(_passC, "Password", Icons.lock_outline_rounded, isPass: true),
-                      
                       const SizedBox(height: 30),
-
-                      // TOMBOL LOGIN & TIMER LOGIC
                       ValueListenableBuilder<bool>(
                         valueListenable: _c.isLocked,
                         builder: (ctxLock, isLocked, childLock) => ValueListenableBuilder<int>(
@@ -136,14 +117,11 @@ class _LoginViewState extends State<LoginView> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               ),
                               child: isLocked 
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                                ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                       const Icon(Icons.timer_outlined, size: 20),
                                       const SizedBox(width: 8),
                                       Text("Tunggu ${timeLeft}s", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    ],
-                                  )
+                                    ])
                                 : const Text("Masuk", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
@@ -153,13 +131,8 @@ class _LoginViewState extends State<LoginView> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-              // Footer Text (Opsional)
-              Text(
-                "Versi 1.0.0 • Secure LogBook",
-                style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 12),
-              ),
+              Text("Versi 1.0.0 • Secure LogBook", style: TextStyle(color: Colors.blueGrey.shade300, fontSize: 12)),
             ],
           ),
         ),
@@ -167,43 +140,21 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  // Widget Input Field Kustom yang lebih bersih
   Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPass = false}) {
     return TextFormField(
       controller: controller,
       obscureText: isPass ? _isObscure : false,
       maxLength: isPass ? 8 : null,
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.blueGrey.shade400),
-        prefixIcon: Icon(icon, color: _primaryBlue),
-        filled: true,
-        fillColor: Colors.grey.shade50, // Latar input abu sangat muda
-        counterText: "", // Sembunyikan counter maxLength
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none, // Hilangkan garis border default
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: _primaryBlue, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: _errorRed),
-        ),
-        suffixIcon: isPass ? IconButton(
-          icon: Icon(_isObscure ? Icons.visibility_off : Icons.visibility, color: Colors.blueGrey.shade300),
-          onPressed: () => setState(() => _isObscure = !_isObscure),
-        ) : null,
+        labelText: label, labelStyle: TextStyle(color: Colors.blueGrey.shade400), prefixIcon: Icon(icon, color: _primaryBlue),
+        filled: true, fillColor: Colors.grey.shade50, counterText: "",
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey.shade200)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _primaryBlue, width: 2)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _errorRed)),
+        suffixIcon: isPass ? IconButton(icon: Icon(_isObscure ? Icons.visibility_off : Icons.visibility, color: Colors.blueGrey.shade300), onPressed: () => setState(() => _isObscure = !_isObscure)) : null,
       ),
-      validator: (v) => isPass 
-        ? (v!.length < 3 ? 'Minimal 3 karakter!' : null) 
-        : (v!.isEmpty ? 'Username wajib diisi!' : null),
+      validator: (v) => isPass ? (v!.length < 3 ? 'Minimal 3 karakter!' : null) : (v!.isEmpty ? 'Username wajib diisi!' : null),
     );
   }
 }
